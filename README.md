@@ -15,32 +15,46 @@ The source code is released under [LGPL 2.1]. However, this package uses `h264_e
 
 ### Supported ROS Distributions
 - Kinetic
-- Lunar
 - Melodic
+
+### Build status
+* Travis CI: [![Build Status](https://travis-ci.org/aws-robotics/kinesisvideo-encoder-ros1.svg?branch=master)](https://travis-ci.org/aws-robotics/kinesisvideo-encoder-ros1)
+ * ROS build farm:
+   * v1.0.0:
+     * ROS Kinetic @ u16.04 Xenial [![Build Status](http://build.ros.org/job/Kbin_uX64__h264_video_encoder__ubuntu_xenial_amd64__binary/badge/icon)](http://build.ros.org/job/Kbin_uX64__h264_video_encoder__ubuntu_xenial_amd64__binary)
 
 
 ## Installation
 
+### Binaries
+On Ubuntu you can install the latest version of this package using the following command
+
+        sudo apt-get update
+        sudo apt-get install -y ros-kinetic-h264-video-encoder
+        
+        
 ### Building from Source
-Create a ROS workspace and a source directory
+
+To build from source you'll need to create a new workspace, clone and checkout the latest release branch of this repository, install all the dependencies, and compile. If you need the latest development features you can clone from the `master` branch instead of the latest release branch. While we guarantee the release branches are stable, __the `master` should be considered to have an unstable build__ due to ongoing development. 
+
+- Create a ROS workspace and a source directory
 
     mkdir -p ~/ros-workspace/src
-    
-To build from source, clone the latest version from master branch and compile the package.
 
-- Clone the package into the source directory
+- Clone the package into the source directory . 
+
+_Note: Replace __`{MAJOR.VERSION}`__ below with the latest major version number to get the latest release branch._
 
         cd ~/ros-workspace/src
-        git clone https://github.com/aws/aws-ros-utils-common.git
-        git clone https://github.com/aws/aws-ros-utils-ros1.git
-        git clone https://github.com/aws/aws-ros-kinesisvideo-encoder-common.git
-        git clone https://github.com/aws/aws-ros-kinesisvideo-encoder-ros1.git
+        git clone https://github.com/aws-robotics/kinesisvideo-encoder-ros1.git -b release-v{MAJOR.VERSION}
 
 - Install dependencies
 
-
-        cd ~/ros-workspace && sudo apt-get update
+        cd ~/ros-workspace 
+        sudo apt-get update && rosdep update
         rosdep install --from-paths src --ignore-src -r -y
+        
+_Note: If building the master branch instead of a release branch you may need to also checkout and build the master branches of the packages this package depends on._
 
 - Build the packages
 
@@ -50,11 +64,45 @@ To build from source, clone the latest version from master branch and compile th
 
         source ~/ros-workspace/install/setup.bash
 
+
 - Build and run the unit tests
 
         colcon build --packages-select h264_video_encoder --cmake-target tests
         colcon test --packages-select h264_video_encoder h264_encoder core && colcon test-results --all
 
+
+### Building on Cloud9 - Cross Compilation
+
+- In RoboMaker's Cloud9, start with an empty workspace and in the Cloud9 console:
+
+       # build docker image
+       cd /opt/robomaker/cross-compilation-dockerfile/
+       sudo bin/build_image.bash  # this step will take a while
+
+       # create workspace
+       mkdir -p ~/environment/robot_ws/src
+       cd ~/environment/robot_ws/src
+       git clone https://github.com/aws-robotics/kinesisvideo-encoder-common.git
+       git clone https://github.com/aws-robotics/kinesisvideo-encoder-ros1.git
+
+       # run docker image
+       cd ..
+       sudo docker run -v $(pwd):/ws -it ros-cross-compile:armhf
+
+- Now you're inside the cross-compilation docker container
+
+       # build the workspace
+       cd ws
+       apt update
+       rosdep install --from-paths src --ignore-src -r -y  # this step will take a while
+       colcon build --build-base armhf_build --install-base armhf_install
+       colcon bundle --build-base armhf_build --install-base armhf_install --bundle-base armhf_bundle --apt-sources-list /opt/cross/apt-sources.yaml   # this step will take a while
+       exit
+
+- Now you're oustide the cross-compilation docker container
+
+       # for more on copying s3 buckets see: https://docs.aws.amazon.com/cli/latest/reference/s3/cp.html
+       aws s3 cp armhf_bundle/output.tar.gz s3://<bucket_name_in_your_robomaker_account>/h264_video_encoder.armhf.tar
 
 ## Launch Files
 A launch file called `h264_video_encoder.launch` is included in this package. The launch file uses the following arguments:
@@ -110,5 +158,5 @@ Please report bugs in [Issue Tracker].
 
 [Amazon Web Services (AWS)]: https://aws.amazon.com/
 [LGPL 2.1]: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html
-[Issue Tracker]: TODO
+[Issue Tracker]: https://github.com/aws-robotics/kinesisvideo-encoder-ros1/issues
 [ROS]: http://www.ros.org
