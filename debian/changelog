@@ -1,0 +1,16 @@
+ros-melodic-h264-video-encoder (1.1.2-1bionic) bionic; urgency=high
+
+  * Update package.xml for 1.1.2 release
+    Signed-off-by: Ryan Newell <mailto:ryanewel@amazon.com>
+  * fix issue with uninitialized frame number (#19 <https://github.com/aws-robotics/kinesisvideo-encoder-ros1/issues/19>)
+    Signed-off-by: Miaofei <mailto:miaofei@amazon.com>
+  * Add gtest and gmock as test dependencies
+  * Update package.xml
+  * Merge pull request #8 <https://github.com/aws-robotics/kinesisvideo-encoder-ros1/issues/8> from ryanewel/master
+    increases unit test code coverage
+  * increases unit test code coverage
+  * Contributors: AAlon, M. M, Ross Desmond, Ryan Newell, ryanewel
+
+ -- AWS RoboMaker <ros-contributions@amazon.com>  Fri, 21 Jun 2019 00:00:00 -0000
+
+
