@@ -1,0 +1,12 @@
+Source: ros-melodic-h264-video-encoder
+Section: misc
+Priority: extra
+Maintainer: AWS RoboMaker <ros-contributions@amazon.com>
+Build-Depends: debhelper (>= 9.0.0), google-mock, libgtest-dev, ros-melodic-aws-ros1-common, ros-melodic-catkin, ros-melodic-h264-encoder-core, ros-melodic-image-transport, ros-melodic-kinesis-video-msgs, ros-melodic-message-generation, ros-melodic-rostest, ros-melodic-sensor-msgs
+Homepage: http://wiki.ros.org/h264_video_encoder
+Standards-Version: 3.9.2
+
+Package: ros-melodic-h264-video-encoder
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, ros-melodic-aws-ros1-common, ros-melodic-image-transport, ros-melodic-image-transport-plugins, ros-melodic-kinesis-video-msgs, ros-melodic-message-runtime, ros-melodic-sensor-msgs
+Description: ROS1 H264 encoder node
