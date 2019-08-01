@@ -1,3 +1,26 @@
+## h264_video_encoder (melodic) - 1.1.3-1
+
+The packages in the `h264_video_encoder` repository were released into the `melodic` distro by running `/usr/bin/bloom-release h264_video_encoder --track melodic --rosdistro melodic -e` on `Thu, 01 Aug 2019 20:59:57 -0000`
+
+The `h264_video_encoder` package was released.
+
+Version of package(s) in repository `h264_video_encoder`:
+
+- upstream repository: https://github.com/aws-robotics/kinesisvideo-encoder-ros1.git
+- release repository: https://github.com/aws-gbp/h264_video_encoder-release.git
+- rosdistro version: `1.1.2-1`
+- old version: `1.1.2-1`
+- new version: `1.1.3-1`
+
+Versions of tools used:
+
+- bloom version: `0.8.0`
+- catkin_pkg version: `0.4.13`
+- rosdep version: `0.15.2`
+- rosdistro version: `0.7.4`
+- vcstools version: `0.1.40`
+
+
 ## h264_video_encoder (kinetic) - 1.1.3-1
 
 The packages in the `h264_video_encoder` repository were released into the `kinetic` distro by running `/usr/bin/bloom-release h264_video_encoder --track kinetic --rosdistro kinetic -e` on `Thu, 01 Aug 2019 20:57:08 -0000`
