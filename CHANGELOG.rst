@@ -2,8 +2,11 @@
 Changelog for package h264_video_encoder
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-1.1.3 (2019-08-01)
+1.1.4 (2019-08-29)
 ------------------
+* increment patch number for bloom release (`#34 <https://github.com/aws-robotics/kinesisvideo-encoder-ros1/issues/34>`_)
+* Adds h264_encoder_core as exec_depend (`#33 <https://github.com/aws-robotics/kinesisvideo-encoder-ros1/issues/33>`_)
+  This commit adds h264_encoder_core as an execution dependency. It also puts the dependencies into alphabetic order.
 * increment patch version (`#31 <https://github.com/aws-robotics/kinesisvideo-encoder-ros1/issues/31>`_)
   Signed-off-by: Miaofei <miaofei@amazon.com>
 * Use standard CMake macros for adding gtest/gmock tests (`#25 <https://github.com/aws-robotics/kinesisvideo-encoder-ros1/issues/25>`_)
@@ -20,4 +23,4 @@ Changelog for package h264_video_encoder
 * Merge pull request `#8 <https://github.com/aws-robotics/kinesisvideo-encoder-ros1/issues/8>`_ from ryanewel/master
   increases unit test code coverage
 * increases unit test code coverage
-* Contributors: AAlon, M. M, Ross Desmond, Ryan Newell, ryanewel
+* Contributors: AAlon, Abby Xu, M. M, Nick Burek, Ross Desmond, Ryan Newell, ryanewel
