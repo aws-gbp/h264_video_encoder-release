@@ -1,0 +1,12 @@
+Source: ros-dashing-h264-video-encoder
+Section: misc
+Priority: extra
+Maintainer: AWS RoboMaker <ros-contributions@amazon.com>
+Build-Depends: debhelper (>= 9.0.0), ros-dashing-ament-cmake, ros-dashing-ament-cmake-gtest, ros-dashing-aws-common, ros-dashing-aws-ros2-common, ros-dashing-h264-encoder-core, ros-dashing-image-transport, ros-dashing-kinesis-video-msgs, ros-dashing-rclcpp, ros-dashing-rmw-implementation, ros-dashing-sensor-msgs, ros-dashing-ros-workspace
+Homepage: http://wiki.ros.org/h264_video_encoder
+Standards-Version: 3.9.2
+
+Package: ros-dashing-h264-video-encoder
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, ros-dashing-aws-common, ros-dashing-aws-ros2-common, ros-dashing-image-transport, ros-dashing-kinesis-video-msgs, ros-dashing-launch, ros-dashing-launch-ros, ros-dashing-rmw-implementation, ros-dashing-sensor-msgs, ros-dashing-ros-workspace
+Description: ROS2 H264 encoder node
