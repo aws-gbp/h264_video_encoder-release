@@ -2,25 +2,32 @@
 Changelog for package h264_video_encoder
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-1.1.4 (2019-08-29)
+2.0.0 (2019-09-06)
 ------------------
-* increment patch number for bloom release (`#34 <https://github.com/aws-robotics/kinesisvideo-encoder-ros1/issues/34>`_)
-* Adds h264_encoder_core as exec_depend (`#33 <https://github.com/aws-robotics/kinesisvideo-encoder-ros1/issues/33>`_)
-  This commit adds h264_encoder_core as an execution dependency. It also puts the dependencies into alphabetic order.
-* increment patch version (`#31 <https://github.com/aws-robotics/kinesisvideo-encoder-ros1/issues/31>`_)
-  Signed-off-by: Miaofei <miaofei@amazon.com>
-* Use standard CMake macros for adding gtest/gmock tests (`#25 <https://github.com/aws-robotics/kinesisvideo-encoder-ros1/issues/25>`_)
-  * modify h264_video_encoder to use add_rostest_gmock()
-  Signed-off-by: Miaofei <miaofei@amazon.com>
-  * update travis.yml to be compatible with specifying multiple package names
-  Signed-off-by: Miaofei <miaofei@amazon.com>
-* Update package.xml for 1.1.2 release
+* Bumping version to 2.0.0 and upgrading package.xml format to 3 (`#13 <https://github.com/aws-robotics/kinesisvideo-encoder-ros2/issues/13>`_)
+  * Bumping version to 2.0.0 and upgrading package.xml format to 3
+  * Add missing dependencies and tweak description
+* Remove image_transport_plugins, message_generation dependencies (`#10 <https://github.com/aws-robotics/kinesisvideo-encoder-ros2/issues/10>`_)
+  * Remove image_transport_plugins dependency
+  * Remove dependency on message_generation
+* Use undeclared node parameters
   Signed-off-by: Ryan Newell <ryanewel@amazon.com>
-* fix issue with uninitialized frame number (`#19 <https://github.com/aws-robotics/kinesisvideo-encoder-ros1/issues/19>`_)
-  Signed-off-by: Miaofei <miaofei@amazon.com>
-* Add gtest and gmock as test dependencies
-* Update package.xml
-* Merge pull request `#8 <https://github.com/aws-robotics/kinesisvideo-encoder-ros1/issues/8>`_ from ryanewel/master
-  increases unit test code coverage
-* increases unit test code coverage
-* Contributors: AAlon, Abby Xu, M. M, Nick Burek, Ross Desmond, Ryan Newell, ryanewel
+* Remove message_runtime from package.xml
+* Add launch files and parameters (`#2 <https://github.com/aws-robotics/kinesisvideo-encoder-ros2/issues/2>`_)
+  * Add launch files and parameters
+  Signed-off-by: Ryan Newell <ryanewel@amazon.com>
+  * Updated passing in param file
+  Signed-off-by: Ryan Newell <ryanewel@amazon.com>
+* Add kinesis_video_msgs to satisfy build dependency (`#4 <https://github.com/aws-robotics/kinesisvideo-encoder-ros2/issues/4>`_)
+  * Add kinesis_video_msgs to satisfy build dependency
+  Signed-off-by: Ryan Newell <ryanewel@amazon.com>
+  * Removing launch dir for build
+* Initial source code migration (`#1 <https://github.com/aws-robotics/kinesisvideo-encoder-ros2/issues/1>`_)
+  * Initial source code migration
+  Signed-off-by: Ryan Newell <ryanewel@amazon.com>
+  * Remove unused files, update README
+  * Add migrated tests
+  Signed-off-by: Ryan Newell <ryanewel@amazon.com>
+  * Remove unnecessary print statements
+  Signed-off-by: Ryan Newell <ryanewel@amazon.com>
+* Contributors: AAlon, Ryan Newell, ryanewel

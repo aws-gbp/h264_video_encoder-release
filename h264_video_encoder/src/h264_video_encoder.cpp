@@ -19,15 +19,16 @@
 
 #include <aws/core/utils/logging/AWSLogging.h>
 #include <aws/core/utils/logging/LogMacros.h>
-#include <aws_ros1_common/sdk_utils/logging/aws_ros_logger.h>
-#include <aws_ros1_common/sdk_utils/ros1_node_parameter_reader.h>
+#include <aws_ros2_common/sdk_utils/logging/aws_ros_logger.h>
+#include <aws_ros2_common/sdk_utils/ros2_node_parameter_reader.h>
 #include <h264_encoder_core/h264_encoder.h>
 #include <h264_encoder_core/h264_encoder_node_config.h>
 #include <image_transport/image_transport.h>
-#include <kinesis_video_msgs/KinesisImageMetadata.h>
-#include <kinesis_video_msgs/KinesisVideoFrame.h>
-#include <ros/ros.h>
-#include <sensor_msgs/image_encodings.h>
+#include <image_transport/subscriber.h>
+#include <kinesis_video_msgs/msg/kinesis_image_metadata.hpp>
+#include <kinesis_video_msgs/msg/kinesis_video_frame.hpp>
+#include <rclcpp/rclcpp.hpp>
+#include <sensor_msgs/image_encodings.hpp>
 
 #include <map>
 #include <string>
@@ -53,7 +54,7 @@ const std::map<std::string, AVPixelFormat> SNSR_IMG_ENC_to_LIBAV_PIXEL_FRMT = {
  * @param param_reader parameter reader used for reading the desired configuration of the encoder
  * output
  */
-void InitializeEncoder(const sensor_msgs::ImageConstPtr & msg,
+void InitializeEncoder(sensor_msgs::msg::Image::ConstSharedPtr msg,
                        std::unique_ptr<H264Encoder> & encoder,
                        const Aws::Client::ParameterReaderInterface & param_reader)
 {
@@ -70,9 +71,9 @@ void InitializeEncoder(const sensor_msgs::ImageConstPtr & msg,
   }
 }
 
-void ImageCallback(const sensor_msgs::ImageConstPtr & msg, const H264Encoder * encoder,
-                   uint64_t & frame_num, kinesis_video_msgs::KinesisImageMetadata & metadata,
-                   ros::Publisher & pub)
+void ImageCallback(sensor_msgs::msg::Image::ConstSharedPtr msg, const H264Encoder * encoder,
+                   uint64_t & frame_num, kinesis_video_msgs::msg::KinesisImageMetadata & metadata,
+                   std::shared_ptr<rclcpp::Publisher<kinesis_video_msgs::msg::KinesisVideoFrame>> pub)
 {
   thread_local H264EncoderResult encoder_output;
 
@@ -88,7 +89,7 @@ void ImageCallback(const sensor_msgs::ImageConstPtr & msg, const H264Encoder * e
     return;
   }
 
-  kinesis_video_msgs::KinesisVideoFrame frame;
+  kinesis_video_msgs::msg::KinesisVideoFrame frame;
   frame.index = frame_num;
   frame.flags = (encoder_output.key_frame) ? kKeyFrameFlag : kBPFrameFlag;
   frame.decoding_ts = encoder_output.frame_dts;
@@ -98,23 +99,23 @@ void ImageCallback(const sensor_msgs::ImageConstPtr & msg, const H264Encoder * e
   frame.frame_data = encoder_output.frame_data;
   frame.metadata.swap(metadata.metadata);
 
-  pub.publish(frame);
+  pub->publish(frame);
 
   constexpr int kDbgMsgThrottlePeriod = 10;  // 10 seconds throttling period
-  ROS_DEBUG_THROTTLE(kDbgMsgThrottlePeriod, "Published Frame #%lu (timestamp: %lu)\n", frame_num,
+  RCUTILS_LOG_DEBUG_THROTTLE("", kDbgMsgThrottlePeriod, "Published Frame #%lu (timestamp: %lu)\n", frame_num,
                      encoder_output.frame_pts);
 
   ++frame_num;
 }
 
-void InitializeCommunication(ros::NodeHandle & nh,
-                             ros::Subscriber& metadata_sub,
+void InitializeCommunication(rclcpp::Node::SharedPtr node,
+                             std::shared_ptr<rclcpp::Subscription<kinesis_video_msgs::msg::KinesisImageMetadata>> & metadata_sub,
                              image_transport::Subscriber& image_sub,
-                             ros::Publisher& pub,
+                             std::shared_ptr<rclcpp::Publisher<kinesis_video_msgs::msg::KinesisVideoFrame>> & pub,
                              std::unique_ptr<H264Encoder>& encoder,
                              uint64_t & frame_num,
-                             kinesis_video_msgs::KinesisImageMetadata & metadata,
-                             Aws::Client::Ros1NodeParameterReader & param_reader)
+                             kinesis_video_msgs::msg::KinesisImageMetadata & metadata,
+                             Aws::Client::Ros2NodeParameterReader & param_reader)
 {
   //
   // reading parameters
@@ -123,15 +124,14 @@ void InitializeCommunication(ros::NodeHandle & nh,
   GetH264EncoderNodeParams(param_reader, params);
 
 
-  pub = nh.advertise<kinesis_video_msgs::KinesisVideoFrame>(params.publication_topic,
+  pub = node->create_publisher<kinesis_video_msgs::msg::KinesisVideoFrame>(params.publication_topic,
                                                             params.queue_size);
 
   //
   // subscribing to topic with callback
   //
-  boost::function<void(const sensor_msgs::ImageConstPtr &)> image_callback;
-  image_callback = [&](const sensor_msgs::ImageConstPtr & msg) -> void {
-    if (0 < pub.getNumSubscribers()) {
+  auto image_callback = [&](const sensor_msgs::msg::Image::ConstSharedPtr msg) -> void {
+    if (0 < pub->get_subscription_count()) {
       if (nullptr == encoder) {
         InitializeEncoder(msg, encoder, param_reader);
       }
@@ -143,45 +143,46 @@ void InitializeCommunication(ros::NodeHandle & nh,
     }
   };
 
-  image_transport::ImageTransport it(nh);
+  image_transport::ImageTransport it(node);
   image_sub =
     it.subscribe(params.subscription_topic, params.queue_size, image_callback);
   AWS_LOGSTREAM_INFO(__func__, "subscribed to " << params.subscription_topic << "...");
 
-  boost::function<void(const kinesis_video_msgs::KinesisImageMetadata::ConstPtr &)>
-    metadata_callback;
-  metadata_callback = [&](const kinesis_video_msgs::KinesisImageMetadata::ConstPtr & msg) -> void {
+  auto metadata_callback = [&](const kinesis_video_msgs::msg::KinesisImageMetadata::ConstPtr msg) -> void {
     metadata.metadata.insert(metadata.metadata.end(), msg->metadata.begin(), msg->metadata.end());
   };
-  metadata_sub =
-    nh.subscribe(params.metadata_topic, params.queue_size, metadata_callback);
+  metadata_sub = node->create_subscription<kinesis_video_msgs::msg::KinesisImageMetadata>(params.metadata_topic, params.queue_size, metadata_callback);
   AWS_LOGSTREAM_INFO(__func__, "subscribed to " << params.metadata_topic << " for metadata...");
 }
 
 AwsError RunEncoderNode(int argc, char ** argv)
 {
-  ros::init(argc, argv, "h264_video_encoder");
-  ros::NodeHandle nh("~");
-  
-  Aws::Utils::Logging::InitializeAWSLogging(
-    Aws::MakeShared<Aws::Utils::Logging::AWSROSLogger>("h264_video_encoder"));
+  rclcpp::init(argc, argv);
+  rclcpp::NodeOptions node_options;
+  node_options.allow_undeclared_parameters(true);
+  node_options.automatically_declare_parameters_from_overrides(true);
+  auto node = rclcpp::Node::make_shared("h264_video_encoder", node_options);
+
+ 
+  Aws::Utils::Logging::InitializeAWSLogging(Aws::MakeShared<Aws::Utils::Logging::AWSROSLogger>(
+    "h264_video_encoder", Aws::Utils::Logging::LogLevel::Trace, node));
   AWS_LOG_INFO(__func__, "Starting H264 Video Node...");
 
-  ros::Publisher pub;
+  std::shared_ptr<rclcpp::Publisher<kinesis_video_msgs::msg::KinesisVideoFrame>> pub;
+  std::shared_ptr<rclcpp::Subscription<kinesis_video_msgs::msg::KinesisImageMetadata>> metadata_sub;
   image_transport::Subscriber image_sub;
-  ros::Subscriber metadata_sub;
   std::unique_ptr<H264Encoder> encoder;
   uint64_t frame_num = 0;
-  kinesis_video_msgs::KinesisImageMetadata metadata;
-  Aws::Client::Ros1NodeParameterReader param_reader;
+  kinesis_video_msgs::msg::KinesisImageMetadata metadata;
+  Aws::Client::Ros2NodeParameterReader param_reader(node);
 
-  InitializeCommunication(nh, metadata_sub, image_sub, pub,
+  InitializeCommunication(node, metadata_sub, image_sub, pub,
                           encoder, frame_num, metadata, param_reader);
   
   //
   // run the node
   //
-  ros::spin();
+  rclcpp::spin(node);
   AWS_LOG_INFO(__func__, "Shutting down H264 Video Node...");
   Aws::Utils::Logging::ShutdownAWSLogging();
   return AWS_ERR_OK;

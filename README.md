@@ -1,10 +1,11 @@
 # h264_video_encoder
 
+**Note: this repository is under active development. The package provided here is a release candidate; the API may change without notice and no support is provided for it at the moment.**
 
 ## Overview
 This package provides a ROS Node that will encode a stream of images into an H264 video stream.
 
-**Keywords**: ROS, AWS, Kinesis
+**Keywords**: ROS, ROS2, AWS, Kinesis
 
 ### License
 The source code is released under [LGPL 2.1]. However, this package uses `h264_encoder_core` which incorporates several different encoding components which may further restrict the license. By default, x264 is used for software encoding, thereby applying GPL to all of h264_video_encoder.
@@ -14,21 +15,19 @@ The source code is released under [LGPL 2.1]. However, this package uses `h264_e
 **Maintainer**: AWS RoboMaker, ros-contributions@amazon.com
 
 ### Supported ROS Distributions
-- Kinetic
-- Melodic
+- Dashing 
 
 ### Build status
 * Travis CI:
-    * "master" branch [![Build Status](https://travis-ci.org/aws-robotics/kinesisvideo-encoder-ros1.svg?branch=master)](https://travis-ci.org/aws-robotics/kinesisvideo-encoder-ros1/branches)
-    * "release-latest" branch [![Build Status](https://travis-ci.org/aws-robotics/kinesisvideo-encoder-ros1.svg?branch=release-latest)](https://travis-ci.org/aws-robotics/kinesisvideo-encoder-ros1/branches)
-* ROS build farm:
-    * ROS Kinetic @ u16.04 Xenial [![Build Status](http://build.ros.org/job/Kbin_uX64__h264_video_encoder__ubuntu_xenial_amd64__binary/badge/icon)](http://build.ros.org/job/Kbin_uX64__h264_video_encoder__ubuntu_xenial_amd64__binary)
-    * ROS Melodic @ u18.04 Bionic [![Build Status](http://build.ros.org/job/Mbin_uB64__h264_video_encoder__ubuntu_bionic_amd64__binary/badge/icon)](http://build.ros.org/job/Mbin_uB64__h264_video_encoder__ubuntu_bionic_amd64__binary)
+    * "master" branch [![Build Status](https://travis-ci.org/aws-robotics/kinesisvideo-encoder-ros2.svg?branch=master)](https://travis-ci.org/aws-robotics/kinesisvideo-encoder-ros2/branches) 
+* ROS build farm: **NOT YET RELEASED**
 
 
 ## Installation
 
 ### Binaries
+
+**Not available in apt yet**
 On Ubuntu you can install the latest version of this package using the following command
 
         sudo apt-get update
@@ -43,18 +42,21 @@ To build from source you'll need to create a new workspace, clone and checkout t
 
         mkdir -p ~/ros-workspace/src
 
-- Clone the package into the source directory . 
+- Clone the package into the source directory
 
         cd ~/ros-workspace/src
-        git clone https://github.com/aws-robotics/kinesisvideo-encoder-ros1.git -b release-latest
+        git clone https://github.com/aws-robotics/kinesisvideo-encoder-ros2.git
+
+- Fetch unreleased dependencies from github
+
+        cd ~/ros-workspace 
+        cp src/kinesisvideo-encoder-ros2/.rosinstall.master .rosinstall
+        rosws update
 
 - Install dependencies
 
-        cd ~/ros-workspace 
-        sudo apt-get update && rosdep update
+        cd ~/ros-workspace && sudo apt-get update && rosdep update
         rosdep install --from-paths src --ignore-src -r -y
-        
-_Note: If building the master branch instead of a release branch you may need to also checkout and build the master branches of the packages this package depends on._
 
 - Build the packages
 
@@ -67,8 +69,8 @@ _Note: If building the master branch instead of a release branch you may need to
 
 - Build and run the unit tests
 
-        colcon build --packages-select h264_video_encoder --cmake-target tests
-        colcon test --packages-select h264_video_encoder h264_encoder_core && colcon test-results --all
+        colcon build 
+        colcon test && colcon test-results --all
 
 
 ### Building on Cloud9 - Cross Compilation
@@ -83,7 +85,7 @@ _Note: If building the master branch instead of a release branch you may need to
        mkdir -p ~/environment/robot_ws/src
        cd ~/environment/robot_ws/src
        git clone https://github.com/aws-robotics/kinesisvideo-encoder-common.git
-       git clone https://github.com/aws-robotics/kinesisvideo-encoder-ros1.git
+       git clone https://github.com/aws-robotics/kinesisvideo-encoder-ros2.git
 
        # run docker image
        cd ..
@@ -105,27 +107,23 @@ _Note: If building the master branch instead of a release branch you may need to
        aws s3 cp armhf_bundle/output.tar.gz s3://<bucket_name_in_your_robomaker_account>/h264_video_encoder.armhf.tar
 
 ## Launch Files
-A launch file called `h264_video_encoder.launch` is included in this package. The launch file uses the following arguments:
+A launch file called `h264_video_encoder_launch.py` is included in this package. The launch file uses the following arguments:
 
 | Arg Name | Description |
 | --------- | ------------ |
 | node_name | (optional) The name the H264 encoder node should be launched with. If not provided, the node name will default to `h264_video_encoder` |
-| config_file | (optional) A path to a rosparam config file. |
-
-An example launch file called `sample_application.launch` is included in this project that gives an example of how you can include this node in your project and provide it with arguments.
-
+| config    | (optional) A path to a ros2 parameters yaml file. By default uses config/sample_configuration.yaml |
 
 ## Usage
 
 ### Running the node
 To launch the H264 encoder node, you can run the following command:
 
-    roslaunch h264_video_encoder sample_application.launch
-
+    ros2 launch h264_video_encoder h264_video_encoder_launch.py 
 
 ## Configuration File and Parameters
 An example configuration file called `sample_configuration.yaml` is provided for running the H264 encoder node on a Raspberry Pi based system.
-When the parameters are absent in the ROS parameter server, default values are used, thus all parameters are optional. See table below for details.
+When the parameters are absent, default values are used, thus all parameters are optional. See table below for details.
 
 | Parameter Name | Description | Type |
 | ------------- | -----------------------------------------------------------| ------------- |

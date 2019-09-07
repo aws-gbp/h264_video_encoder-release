@@ -16,18 +16,21 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  */
+#include <cmath>
+#include <string.h>
 
-#include <aws_ros1_common/sdk_utils/ros1_node_parameter_reader.h>
+#include <aws_ros2_common/sdk_utils/ros2_node_parameter_reader.h>
 #include <aws/core/utils/logging/AWSLogging.h>
 #include <aws/core/utils/logging/LogMacros.h>
 #include <gtest/gtest.h>
 #include <h264_encoder_core/h264_encoder.h>
 #include <h264_encoder_core/h264_encoder_node_config.h>
 #include <image_transport/image_transport.h>
-#include <kinesis_video_msgs/KinesisImageMetadata.h>
-#include <kinesis_video_msgs/KinesisVideoFrame.h>
-#include <ros/ros.h>
-#include <sensor_msgs/image_encodings.h>
+#include <kinesis_video_msgs/msg/kinesis_image_metadata.hpp>
+#include <kinesis_video_msgs/msg/kinesis_video_frame.hpp>
+#include <rclcpp/rclcpp.hpp>
+#include <rclcpp/time.hpp>
+#include <sensor_msgs/image_encodings.hpp>
 
 using namespace Aws::Utils::Encoding;
 using namespace Aws::Utils::Logging;
@@ -35,22 +38,22 @@ using namespace Aws::Utils::Logging;
 namespace Aws {
 namespace Kinesis {
 
-void InitializeEncoder(const sensor_msgs::ImageConstPtr & msg,
+void InitializeEncoder(sensor_msgs::msg::Image::ConstSharedPtr msg,
                        std::unique_ptr<H264Encoder> & encoder,
                        const Aws::Client::ParameterReaderInterface & param_reader);
 
-void ImageCallback(const sensor_msgs::ImageConstPtr & msg, const H264Encoder * encoder,
-                   uint64_t & frame_num, kinesis_video_msgs::KinesisImageMetadata & metadata,
-                   ros::Publisher & pub);
+void ImageCallback(sensor_msgs::msg::Image::ConstSharedPtr msg, const H264Encoder * encoder,
+                   uint64_t & frame_num, kinesis_video_msgs::msg::KinesisImageMetadata & metadata,
+                   std::shared_ptr<rclcpp::Publisher<kinesis_video_msgs::msg::KinesisVideoFrame>> pub);
 
-void InitializeCommunication(ros::NodeHandle & nh,
-                             ros::Subscriber & metadata_sub,
+void InitializeCommunication(rclcpp::Node::SharedPtr node,
+                             std::shared_ptr<rclcpp::Subscription<kinesis_video_msgs::msg::KinesisImageMetadata>> & metadata_sub,
                              image_transport::Subscriber & image_sub,
-                             ros::Publisher & pub,
+                             std::shared_ptr<rclcpp::Publisher<kinesis_video_msgs::msg::KinesisVideoFrame>> & pub,
                              std::unique_ptr<H264Encoder> & encoder,
                              uint64_t & frame_num,
-                             kinesis_video_msgs::KinesisImageMetadata & metadata,
-                             Aws::Client::Ros1NodeParameterReader & param_reader
+                             kinesis_video_msgs::msg::KinesisImageMetadata & metadata,
+                             Aws::Client::Ros2NodeParameterReader & param_reader
                             );
 
 }  // namespace Kinesis
@@ -63,34 +66,30 @@ constexpr static int kDefaultWidth = 410;
 constexpr static int kDefaultHeight = 308;
 constexpr static int kBytesPerPixel = 3;  // 3 color channels (red, green, blue)
 constexpr int kNumTestFrames = 30;
-
+static const std::string & kDefaultEncoding = sensor_msgs::image_encodings::RGB8;
 
 class H264EncoderNodeSuite : public ::testing::Test
 {
 public:
 
-  constexpr static const std::string & kDefaultEncoding = sensor_msgs::image_encodings::RGB8;
 
   H264EncoderNodeSuite() {}
 
 protected:
   void SetUp() override
   {
-    ros::Time::init();
-
-    default_msg = boost::make_shared<sensor_msgs::Image>();
-    default_msg->header.seq = 0;
+    default_msg = std::make_shared<sensor_msgs::msg::Image>();
     default_msg->header.frame_id = "";
-    default_msg->header.stamp = ros::Time::now();
+    default_msg->header.stamp = rclcpp::Clock().now();
     default_msg->height = kDefaultHeight;
     default_msg->width = kDefaultWidth;
     default_msg->encoding = kDefaultEncoding;
     default_msg->step = kBytesPerPixel * kDefaultWidth;
   }
 
-  void KinesisVideoCallback(const kinesis_video_msgs::KinesisVideoFrame::ConstPtr & frame)
+  void KinesisVideoCallback(const kinesis_video_msgs::msg::KinesisVideoFrame::ConstPtr frame)
   {
-    if (frame->index > 0) {
+    if (prev_frame.index > 0) {
       EXPECT_GT(frame->index, prev_frame.index);
       EXPECT_EQ(prev_frame.duration, frame->duration);
       EXPECT_EQ(0, (frame->decoding_ts - prev_frame.decoding_ts) % frame->duration);
@@ -106,11 +105,10 @@ protected:
     fwrite(prev_frame.frame_data.data(), 1, prev_frame.frame_data.size(), debug_file);
   }
 
-  sensor_msgs::ImagePtr default_msg;
+  sensor_msgs::msg::Image::SharedPtr default_msg;
   std::unique_ptr<H264Encoder> encoder;
-  Aws::Client::Ros1NodeParameterReader param_reader;
 
-  kinesis_video_msgs::KinesisVideoFrame prev_frame;
+  kinesis_video_msgs::msg::KinesisVideoFrame prev_frame;
   FILE * debug_file;
 };
 
@@ -119,8 +117,10 @@ protected:
  */
 TEST_F(H264EncoderNodeSuite, EncoderInit)
 {
+  auto node = rclcpp::Node::make_shared("node");
+  Aws::Client::Ros2NodeParameterReader param_reader(node);
   std::unique_ptr<H264Encoder> invalid_encoder;
-  sensor_msgs::ImagePtr invalid_msg = boost::make_shared<sensor_msgs::Image>();
+  sensor_msgs::msg::Image::SharedPtr invalid_msg = std::make_shared<sensor_msgs::msg::Image>();
   invalid_msg->encoding = "InvalidEncoding";
   Aws::Kinesis::InitializeEncoder(invalid_msg, invalid_encoder, param_reader);
   EXPECT_EQ(invalid_encoder, nullptr);
@@ -174,10 +174,9 @@ static void RainbowColor(const float h, uint8_t & r_out, uint8_t & g_out, uint8_
   b_out = std::lround(255.0f * b);
 }
 
-void CreateImageMsg(sensor_msgs::ImagePtr & msg, int frame_num)
+void CreateImageMsg(sensor_msgs::msg::Image::SharedPtr msg, int frame_num)
 {
-  ++msg->header.seq;
-  msg->header.stamp = ros::Time::now();
+  msg->header.stamp = rclcpp::Clock().now();
 
   // prepare a dummy image
   int shift = static_cast<float>(frame_num) / (kNumTestFrames - 1) * kDefaultWidth;
@@ -197,30 +196,36 @@ void CreateImageMsg(sensor_msgs::ImagePtr & msg, int frame_num)
  */
 TEST_F(H264EncoderNodeSuite, EncoderCallback)
 {
+  
+  auto pub_node = rclcpp::Node::make_shared("pub_node");
+  auto pub =
+    pub_node->create_publisher<kinesis_video_msgs::msg::KinesisVideoFrame>(kDefaultPublicationTopicName, 100);
+
+  Aws::Client::Ros2NodeParameterReader param_reader(pub_node);
   Aws::Kinesis::InitializeEncoder(default_msg, encoder, param_reader);
   EXPECT_NE(encoder, nullptr);
 
-  ros::NodeHandle pub_node;
-  ros::Publisher pub =
-    pub_node.advertise<kinesis_video_msgs::KinesisVideoFrame>(kDefaultPublicationTopicName, 100);
-
-  ros::NodeHandle sub_node;
-  boost::function<void(const kinesis_video_msgs::KinesisVideoFrame::ConstPtr &)> callback;
-  callback = [this](const kinesis_video_msgs::KinesisVideoFrame::ConstPtr & frame) -> void {
+  auto sub_node = rclcpp::Node::make_shared("sub_node");
+  auto callback = [this](const kinesis_video_msgs::msg::KinesisVideoFrame::ConstPtr frame) -> void {
     this->KinesisVideoCallback(frame);
   };
-  ros::Subscriber sub = sub_node.subscribe(kDefaultPublicationTopicName, 100, callback);
+  auto sub = sub_node->create_subscription<kinesis_video_msgs::msg::KinesisVideoFrame>(kDefaultPublicationTopicName, 100, callback);
 
   default_msg->data.resize(kBytesPerPixel * kDefaultWidth * kDefaultHeight);
   debug_file = fopen("frames_encodercallback.bin", "wb");
 
   // let's encode 30 frames
   uint64_t prev_frame_index = 0, frame_index = 0;
-  kinesis_video_msgs::KinesisImageMetadata metadata;
+  kinesis_video_msgs::msg::KinesisImageMetadata metadata;
+  rclcpp::executors::MultiThreadedExecutor executor;
+  executor.add_node(pub_node);
+  executor.add_node(sub_node);
   for (int i = 0; i < kNumTestFrames; ++i) {
     CreateImageMsg(default_msg, i);
     Aws::Kinesis::ImageCallback(default_msg, encoder.get(), frame_index, metadata, pub);
-    ros::spinOnce();
+    executor.spin_some();
+    //rclcpp::spin_some(pub_node);
+    //rclcpp::spin_some(sub_node);
 
     EXPECT_GE(frame_index, prev_frame_index);
     prev_frame_index = frame_index;
@@ -238,42 +243,46 @@ TEST_F(H264EncoderNodeSuite, EncoderCallback)
 
 TEST_F(H264EncoderNodeSuite, InitializeCommunicaiton)
 {
-  ros::NodeHandle nh("~");
-  ros::Publisher pub;
+  auto init_node = rclcpp::Node::make_shared("init_node");
+  std::shared_ptr<rclcpp::Publisher<kinesis_video_msgs::msg::KinesisVideoFrame>> pub;
   image_transport::Subscriber image_sub;
-  ros::Subscriber metadata_sub;
+  std::shared_ptr<rclcpp::Subscription<kinesis_video_msgs::msg::KinesisImageMetadata>> metadata_sub;
   uint64_t frame_num = 0;
-  kinesis_video_msgs::KinesisImageMetadata metadata;
-  Aws::Client::Ros1NodeParameterReader param_reader;
-  Aws::Kinesis::InitializeCommunication(nh, metadata_sub, image_sub, pub,
+  kinesis_video_msgs::msg::KinesisImageMetadata metadata;
+  Aws::Client::Ros2NodeParameterReader param_reader(init_node);
+  AWS_LOG_ERROR(__func__, "Initialized communication\n");
+  Aws::Kinesis::InitializeCommunication(init_node, metadata_sub, image_sub, pub,
                                         encoder, frame_num, metadata, param_reader);
 
-  EXPECT_EQ(kDefaultPublicationTopicName, pub.getTopic());
-  EXPECT_EQ(kDefaultSubscriptionTopicName, image_sub.getTopic());
-  EXPECT_EQ(kDefaultMetadataTopicName, metadata_sub.getTopic());
+  EXPECT_EQ(std::string(kDefaultMetadataTopicName), std::string(metadata_sub->get_topic_name()));
+  EXPECT_EQ(std::string(kDefaultPublicationTopicName), std::string(pub->get_topic_name()));
+  EXPECT_EQ(std::string(kDefaultSubscriptionTopicName), std::string(image_sub.getTopic()));
 
   // Test that callback function is properly set up
-  ros::NodeHandle sub_node;
-  boost::function<void(const kinesis_video_msgs::KinesisVideoFrame::ConstPtr &)> callback;
-  callback = [this](const kinesis_video_msgs::KinesisVideoFrame::ConstPtr & frame) -> void {
+  auto sub_node = rclcpp::Node::make_shared("sub_node");
+  auto callback = [this](const kinesis_video_msgs::msg::KinesisVideoFrame::ConstPtr frame) -> void {
     this->KinesisVideoCallback(frame);
   };
-  ros::Subscriber sub = sub_node.subscribe(kDefaultPublicationTopicName, 100, callback);
+  auto callback_sub = sub_node->create_subscription<kinesis_video_msgs::msg::KinesisVideoFrame>(kDefaultPublicationTopicName, 100, callback);
 
   // setup the raw image source
   default_msg->data.resize(kBytesPerPixel * kDefaultWidth * kDefaultHeight);
-  ros::NodeHandle pub_node("~");
-  ros::Publisher image_pub =
-    pub_node.advertise<sensor_msgs::Image>(kDefaultSubscriptionTopicName, 100);
+  auto pub_node = rclcpp::Node::make_shared("pub_node");
+  auto image_pub =
+    pub_node->create_publisher<sensor_msgs::msg::Image>(kDefaultSubscriptionTopicName, 100);
 
   // let's encode 30 frames of the raw image
   constexpr int kNumTestFrames = 30;
   debug_file = fopen("frames_intialize_communication.bin", "wb");
   uint64_t prev_frame_index = 0, frame_index = 0;
+  rclcpp::executors::SingleThreadedExecutor executor;
+  executor.add_node(init_node);
+  executor.add_node(sub_node);
+  executor.add_node(pub_node);
   for (int i = 0; i < kNumTestFrames; ++i) {
     CreateImageMsg(default_msg, i);
-    image_pub.publish(default_msg);
-    ros::spinOnce();
+    image_pub->publish(default_msg);
+    executor.spin_some();
     EXPECT_GE(frame_index, prev_frame_index);
     prev_frame_index = frame_index;
   }
@@ -286,6 +295,6 @@ int main(int argc, char ** argv)
 {
 
   testing::InitGoogleTest(&argc, argv);
-  ros::init(argc, argv, "test_h264_video_encoder");
+  rclcpp::init(argc, argv);
   return RUN_ALL_TESTS();
 }
