@@ -1,62 +1,47 @@
 # h264_video_encoder
 
-**Note: this repository is under active development. The package provided here is a release candidate; the API may change without notice and no support is provided for it at the moment.**
 
 ## Overview
 This package provides a ROS Node that will encode a stream of images into an H264 video stream.
 
-**Keywords**: ROS, ROS2, AWS, Kinesis
+**Keywords**: ROS, AWS, Kinesis
 
 ### License
 The source code is released under [LGPL 2.1]. However, this package uses `h264_encoder_core` which incorporates several different encoding components which may further restrict the license. By default, x264 is used for software encoding, thereby applying GPL to all of h264_video_encoder.
 
 **Author**: AWS RoboMaker<br/>
 **Affiliation**: [Amazon Web Services (AWS)]<br/>
-**Maintainer**: AWS RoboMaker, ros-contributions@amazon.com
+
+RoboMaker cloud extensions rely on third-party software licensed under open-source licenses and are provided for demonstration purposes only. Incorporation or use of RoboMaker cloud extensions in connection with your production workloads or commercial product(s) or devices may affect your legal rights or obligations under the applicable open-source licenses. AWS does not provide support for this cloud extension. You are solely responsible for how you configure, deploy, and maintain this cloud extension in your workloads or commercial product(s) or devices.
 
 ### Supported ROS Distributions
-- Dashing 
-
-### Build status
-* Travis CI:
-    * "master" branch [![Build Status](https://travis-ci.org/aws-robotics/kinesisvideo-encoder-ros2.svg?branch=master)](https://travis-ci.org/aws-robotics/kinesisvideo-encoder-ros2/branches) 
-* ROS build farm: **NOT YET RELEASED**
-
+- Kinetic
+- Melodic
 
 ## Installation
 
-### Binaries
-
-**Not available in apt yet**
-On Ubuntu you can install the latest version of this package using the following command
-
-        sudo apt-get update
-        sudo apt-get install -y ros-$ROS_DISTRO-h264-video-encoder
-        
-        
 ### Building from Source
 
 To build from source you'll need to create a new workspace, clone and checkout the latest release branch of this repository, install all the dependencies, and compile. If you need the latest development features you can clone from the `master` branch instead of the latest release branch. While we guarantee the release branches are stable, __the `master` should be considered to have an unstable build__ due to ongoing development. 
+
+- Install build tool: please refer to `colcon` [installation guide](https://colcon.readthedocs.io/en/released/user/installation.html)
 
 - Create a ROS workspace and a source directory
 
         mkdir -p ~/ros-workspace/src
 
-- Clone the package into the source directory
+- Clone the package into the source directory . 
 
         cd ~/ros-workspace/src
-        git clone https://github.com/aws-robotics/kinesisvideo-encoder-ros2.git
-
-- Fetch unreleased dependencies from github
-
-        cd ~/ros-workspace 
-        cp src/kinesisvideo-encoder-ros2/.rosinstall.master .rosinstall
-        rosws update
+        git clone https://github.com/aws-robotics/kinesisvideo-encoder-ros1.git -b release-latest
 
 - Install dependencies
 
-        cd ~/ros-workspace && sudo apt-get update && rosdep update
+        cd ~/ros-workspace 
+        sudo apt-get update && rosdep update
         rosdep install --from-paths src --ignore-src -r -y
+        
+_Note: If building the master branch instead of a release branch you may need to also checkout and build the master branches of the packages this package depends on._
 
 - Build the packages
 
@@ -69,8 +54,8 @@ To build from source you'll need to create a new workspace, clone and checkout t
 
 - Build and run the unit tests
 
-        colcon build 
-        colcon test && colcon test-results --all
+        colcon build --packages-select h264_video_encoder --cmake-target tests
+        colcon test --packages-select h264_video_encoder h264_encoder_core && colcon test-results --all
 
 
 ### Building on Cloud9 - Cross Compilation
@@ -85,7 +70,7 @@ To build from source you'll need to create a new workspace, clone and checkout t
        mkdir -p ~/environment/robot_ws/src
        cd ~/environment/robot_ws/src
        git clone https://github.com/aws-robotics/kinesisvideo-encoder-common.git
-       git clone https://github.com/aws-robotics/kinesisvideo-encoder-ros2.git
+       git clone https://github.com/aws-robotics/kinesisvideo-encoder-ros1.git
 
        # run docker image
        cd ..
@@ -107,23 +92,27 @@ To build from source you'll need to create a new workspace, clone and checkout t
        aws s3 cp armhf_bundle/output.tar.gz s3://<bucket_name_in_your_robomaker_account>/h264_video_encoder.armhf.tar
 
 ## Launch Files
-A launch file called `h264_video_encoder_launch.py` is included in this package. The launch file uses the following arguments:
+A launch file called `h264_video_encoder.launch` is included in this package. The launch file uses the following arguments:
 
 | Arg Name | Description |
 | --------- | ------------ |
 | node_name | (optional) The name the H264 encoder node should be launched with. If not provided, the node name will default to `h264_video_encoder` |
-| config    | (optional) A path to a ros2 parameters yaml file. By default uses config/sample_configuration.yaml |
+| config_file | (optional) A path to a rosparam config file. |
+
+An example launch file called `sample_application.launch` is included in this project that gives an example of how you can include this node in your project and provide it with arguments.
+
 
 ## Usage
 
 ### Running the node
 To launch the H264 encoder node, you can run the following command:
 
-    ros2 launch h264_video_encoder h264_video_encoder_launch.py 
+    roslaunch h264_video_encoder sample_application.launch
+
 
 ## Configuration File and Parameters
 An example configuration file called `sample_configuration.yaml` is provided for running the H264 encoder node on a Raspberry Pi based system.
-When the parameters are absent, default values are used, thus all parameters are optional. See table below for details.
+When the parameters are absent in the ROS parameter server, default values are used, thus all parameters are optional. See table below for details.
 
 | Parameter Name | Description | Type |
 | ------------- | -----------------------------------------------------------| ------------- |
@@ -146,13 +135,6 @@ When the parameters are absent, default values are used, thus all parameters are
 | Topic Name | Message Type | Description |
 | ---------- | ------------ | ----------- |
 | *Configurable* (default="/raspicam_node/image") | sensor_msgs/Image | The node will subscribe to a topic of a given name. The data is expected to be a stream of images from a source (such as a Raspberry Pi camera). |
-
-
-## Bugs & Feature Requests
-Please contact the team directly if you would like to request a feature.
-
-Please report bugs in [Issue Tracker].
-
 
 [Amazon Web Services (AWS)]: https://aws.amazon.com/
 [LGPL 2.1]: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html
